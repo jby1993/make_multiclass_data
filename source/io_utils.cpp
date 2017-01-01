@@ -19,6 +19,7 @@ void partfid2wholef2anotherpartfid(const std::string &pf2wf_file, const std::str
         file>>id;
         list2.push_back(id);
     }while(!file.eof());
+    file.close();
     corres.clear();
     bool check=false;
     for(int i=0; i<list1.size(); i++)

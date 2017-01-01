@@ -69,6 +69,8 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
         #pragma omp parallel for num_threads(m_thread_num)
         for(int i=0; i<mesh_files.size(); i++)
         {
+            if(i==3792)
+                std::cout<<"here"<<std::endl;
             std::string mesh_name = mesh_files[i];
             const std::vector<std::string>  &temp = per_imgfiles[i];
             int thread_id = omp_get_thread_num();

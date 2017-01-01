@@ -148,8 +148,11 @@ void myRender::rasterizeTriangle(float x0, float y0, float x1, float y1, float x
     {
         for(int x=amin; x<=amax; x++)
         {
-                if(check_box_pixel_in_triangle(x,y,a0,b0,a1,b1,a2,b2))
-                    rastered_pixel_id.push_back(y*m_width+x);
+            //x,y must on m_width*m_height, otherwise delete it
+            if(x<0||x>=m_width||y<0||y>=m_height)
+                continue;
+            if(check_box_pixel_in_triangle(x,y,a0,b0,a1,b1,a2,b2))
+                rastered_pixel_id.push_back(y*m_width+x);
         }
     }
 

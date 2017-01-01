@@ -1,14 +1,5 @@
-#include <fstream>
-#include <QString>
-#include <QDir>
-#include <QStringList>
-#include <QString>
-#include <opencv/cv.h>
-#include <opencv2/highgui/highgui.hpp>
 #include "io_utils.h"
 #include "make_data_for_multi_classlearn.h"
-#include <omp.h>
-#include <stdlib.h>
 int main(int argc, char *argv[])
 {
 
