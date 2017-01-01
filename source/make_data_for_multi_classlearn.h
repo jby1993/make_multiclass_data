@@ -6,29 +6,37 @@
 #include "render.h"
 #include "random_num_generator.h"
 using namespace Eigen;
+using namespace std;
 class make_data_for_multi_classlearn
 {
 public:
     make_data_for_multi_classlearn();
+    ~make_data_for_multi_classlearn();
     void set_render_to_label(bool val){m_render_to_label=val;}
+    void set_thread_num(int num){m_thread_num=num;}
     void make_data(const std::string &root, const std::string &save_root);
     static void decode_img_to_compression_label_bin(const cv::Mat &img, const std::string &out);
     static void decode_compression_label_bin_to_img_label(const std::string &in,std::vector<uint16_t> &label, int &rows, int &cols);
 private:
-    void render_patches_on_img(cv::Mat &result);
-    void render_keypoints_on_img(cv::Mat &result);
+    void render_patches_on_img_for_multithread(cv::Mat &result, cv::Mat &img, TriMesh &mesh, const Matrix3f &R, const Vector2f &T, const float &scale, int thread_id);
+    void render_keypoints_on_img_for_multithread(cv::Mat &result, const cv::Mat &img, TriMesh &mesh, const Matrix3f &R, const Vector2f &T, const float &scale, int thread_id);
     void read_patches_and_neighbors(const std::string &file0, const std::string &file1);
-    void read_mesh_para(const std::string &file);
-    void read_pose_para(const std::string &file);
-    void read_img(const std::string &file);
-    void update_mesh();
+    void read_mesh_para_thread(const std::string &file, int thread_num);
+    void read_pose_to_local(const std::string &file, Matrix3f &R, Vector2f &weak_T, float &scale);
+    void read_img_to_local(const std::string &file, cv::Mat &img);
+    void update_local_mesh(TriMesh &mesh, int thread_id);
     void compute_predefined_colors();
-    void set_patches_colors();
-    void code_patches_colors();
-    void set_keypoints_colors();
-    void code_keypoints_colors();
+    void set_patches_colors_for_multithread(std::vector<TriMesh::Color> &colors);
+    void set_keypoints_colors_for_multithread(std::vector<TriMesh::Color> &colors);
+    void code_patches_colors_formultithread(std::vector<TriMesh::Color> &colors);
+    void code_keypoints_colors_formultithread(std::vector<TriMesh::Color> &colors);
+    void color_mesh(TriMesh &mesh, const vector<TriMesh::Color> &colors, bool isface);
 
+    void get_meshpara_names(const std::string &root,std::vector<std::string> &names);
+    void get_permesh_imgnames(const std::string &root, const std::vector<std::string> &meshfiles, std::vector<std::vector<std::string> > &names);
     void random_get_patch_color(const std::set<int> &exclude_color_ids, int &choosed_id, base_generator_type &gen);
+
+    void set_threads(int thread_num);
 private:
     MatrixXf m_mean_shape;
     MatrixXf m_pca_shape;
@@ -36,18 +44,15 @@ private:
     MatrixXf m_mean_exp;
     MatrixXf m_pca_exp;
     MatrixXf m_exp_st;
+    int m_thread_num;
     int m_vnum;
     int m_shape_pcanum;
     int m_exp_pcanum;
-    VectorXf m_shape;
-    VectorXf m_exp;
-    cv::Mat m_img;
-    Matrix3f m_R;
-    Vector2f m_weak_T;
-    TriMesh m_mesh;
-    float m_scale;
+    vector<VectorXf>    m_shapes;   //for multi thread
+    vector<VectorXf>    m_exps;
+    vector<TriMesh> m_meshs;    //for multi thread
     std::vector<int> m_partv_2_wholev;
-    Render m_render;
+    vector<Render*>    m_renders;
     std::vector<std::vector<int> >  m_patches;
     std::vector<std::vector<int> >  m_patch_neighbors;
     std::vector<int> m_keypoints_id;

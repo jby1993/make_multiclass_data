@@ -5,8 +5,12 @@
 #include <QDir>
 #include <QStringList>
 #include <stdint.h>
+#include <omp.h>
+#include <bits/basic_string.h>
 make_data_for_multi_classlearn::make_data_for_multi_classlearn()
 {
+    m_thread_num = 4;
+
     m_render_to_label=false;
     io_utils::read_pca_models("../Data/mainShapePCA.bin",m_mean_shape,m_pca_shape,m_shape_st,
                               m_vnum,m_shape_pcanum);
@@ -14,27 +18,36 @@ make_data_for_multi_classlearn::make_data_for_multi_classlearn()
                               m_vnum,m_exp_pcanum);
     io_utils::read_all_type_file_to_vector<int>("../Data/partv23dmmv.txt",m_partv_2_wholev);
     io_utils::read_all_type_file_to_vector<int>("../Data/part_face_keypoints.txt",m_keypoints_id);
-    OpenMesh::IO::read_mesh(m_mesh,"../Data/part_face.obj");
-//    m_mesh.request_vertex_normals();
-//    m_mesh.request_face_normals();
-    m_mesh.request_face_colors();
-    m_mesh.request_vertex_colors();
     compute_predefined_colors();
+}
+
+make_data_for_multi_classlearn::~make_data_for_multi_classlearn()
+{
+    for(int i=0; i<m_renders.size();i++)
+        delete m_renders[i];
 }
 
 void make_data_for_multi_classlearn::make_data(const std::string &root, const std::string &save_root)
 {
+    std::cout<<"start make data; threads num is "<<m_thread_num<<std::endl;
+    set_threads(m_thread_num);
     std::string segdata_root="../part_face_seg_result/";
     QDir save_dir(QString(save_root.data()));
-    int num_seg=100;
-    int accu_seg_num_to_pause=15;
-    int accu_seg_num=0;
-    for(int i=0;i<num_seg+1;i++)  //100 segmentation and 1 keypoints classification
+    int num_seg=31;
+        int accu_seg_num_to_pause=15;
+        int accu_seg_num=0;
+        std::vector<std::string> mesh_files;
+    //    get_meshpara_names(root, mesh_files);
+        io_utils::read_all_type_file_to_vector<std::string>("../Data/mesh_para_filenames.txt",mesh_files);
+        std::vector<std::vector<std::string > > per_imgfiles;
+    //    get_permesh_imgnames(root, mesh_files, per_imgfiles);
+        io_utils::read_all_type_rowsfile_to_2vector<std::string>("../Data/permesh_imgfiles.txt",per_imgfiles);
+    for(int k=30;k<num_seg+1;k++)  //myrender do not make keypoints result
     {
-
+//program pause
         if(accu_seg_num==accu_seg_num_to_pause)
         {
-            std::cout<<"reach pause segmentation num, "<<"segmentation before "<<i<<" has been computed, "<<"please compress data and upload to serve, and clean local data to save space!"<<std::endl;
+            std::cout<<"reach pause segmentation num, "<<"segmentation before "<<k<<" has been computed, "<<"please compress data and upload to serve, and clean local data to save space!"<<std::endl;
             std::cout<<"after clean data, input continue to continue."<<std::endl;
 
             std::string input;
@@ -47,94 +60,91 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
             std::cout<<"continue..."<<std::endl;
             accu_seg_num=0;
         }
-
-
-        save_dir.mkdir(QString((std::to_string(i)).data()));
-        std::string patchfile = segdata_root+"part_face_segs_"+std::to_string(i)+".txt";
-        std::string neighfile = segdata_root+"part_face_seg_neighbors_"+std::to_string(i)+".txt";
+        QString temp;   temp.setNum(k);
+        std::string numk=temp.toStdString();
+        save_dir.mkdir(temp);
+        std::string patchfile = segdata_root+"part_face_segs_"+numk+".txt";
+        std::string neighfile = segdata_root+"part_face_seg_neighbors_"+numk+".txt";
         read_patches_and_neighbors(patchfile,neighfile);
-        if(i<num_seg)
+        std::vector<TriMesh::Color> patchcolors;
+        bool isfacecolor=true;
+        if(k<num_seg)
         {
             if(!m_render_to_label)
-                set_patches_colors();
+                set_patches_colors_for_multithread(patchcolors);
             else
-                code_patches_colors();
+                code_patches_colors_formultithread(patchcolors);
         }
         else
         {
+            isfacecolor=false;
             if(!m_render_to_label)
-                set_keypoints_colors();
+                set_keypoints_colors_for_multithread(patchcolors);
             else
-                code_keypoints_colors();
+                code_keypoints_colors_formultithread(patchcolors);
         }
-        QDir path(QString(root.data()));
-        path.setFilter(QDir::Files);
-        QStringList filters={"*_mesh_para.txt"};
-        path.setNameFilters(filters);
-        path.setSorting(QDir::Name);
-        QStringList entrys = path.entryList();
-        int num=0;
-        for(QStringList::Iterator vit = entrys.begin(); vit!=entrys.end(); vit++)
+//        int num=0;
+        #pragma omp parallel for num_threads(m_thread_num)
+        for(int i=0; i</*mesh_files.size()*/100; i++)
         {
-            std::string mesh_name = (*vit).toStdString();
-            QStringList filters2;
-            filters2.push_back(QString((mesh_name.substr(0,mesh_name.size()-14)+"_*.jpg").data()));
-            path.setNameFilters(filters2);
-            QStringList entrys2 = path.entryList();
-            for(QStringList::Iterator sit = entrys2.begin(); sit!=entrys2.end(); sit++)
+            std::string mesh_name = mesh_files[i];
+            const std::vector<std::string>  &temp = per_imgfiles[i];
+            int thread_id = omp_get_thread_num();
+            read_mesh_para_thread(root+mesh_name, thread_id);
+            update_local_mesh(m_meshs[thread_id],thread_id);
+            color_mesh(m_meshs[thread_id],patchcolors,isfacecolor);
+            for(int j=0; j<temp.size(); j++)
             {
-                std::string img_name = (*sit).toStdString();
+                std::string img_name = temp[j];
                 std::string pose_name = img_name.substr(0,img_name.size()-4)+"_pose.txt";
-                read_mesh_para(root+mesh_name);
-                read_pose_para(root+pose_name);
-                read_img(root+img_name);
-                update_mesh();
+                Matrix3f R; Vector2f T; float scale;
+                read_pose_to_local(root+pose_name,R,T,scale);
+                cv::Mat img;
+                read_img_to_local(root+img_name,img);
                 cv::Mat result;
-                if(i<num_seg)
-                {
-                        render_patches_on_img(result);
-                }
+                if(k<num_seg)
+                    render_patches_on_img_for_multithread(result,img,m_meshs[thread_id],R,T,scale,thread_id);
                 else
-                {
-                        render_keypoints_on_img(result);
-                }
+                    render_keypoints_on_img_for_multithread(result,img,m_meshs[thread_id],R,T,scale,thread_id);
                 if(!m_render_to_label)
-                    cv::imwrite(save_root+std::to_string(i)+"/"+img_name,result);
+                    cv::imwrite(save_root+numk+"/"+img_name,result);
                 else
                 {
                     decode_img_to_compression_label_bin(result,
-                                                        save_root+std::to_string(i)+"/"+img_name.substr(0,img_name.size()-4)+"_label.bin");
+                                                        save_root+numk+"/"+img_name.substr(0,img_name.size()-4)+"_label.bin");
                 }
             }
 //            if(num>10)
 //                break;
-            std::cout<<std::to_string(i)<<" seg, "<<std::to_string(num)<<" person done!"<<std::endl;
-            num++;
+            QString itemp;  itemp.setNum(i);
+            std::string numi = itemp.toStdString();
+            std::cout<<numk<<" seg, "<<numi<<" person done!"<<std::endl;
+//            num++;
         }
         accu_seg_num++;
     }
 }
 
-void make_data_for_multi_classlearn::render_patches_on_img(cv::Mat &result)
+
+void make_data_for_multi_classlearn::render_patches_on_img_for_multithread(cv::Mat &result, cv::Mat &img, TriMesh &mesh,const Matrix3f &R, const Vector2f &T, const float &scale, int thread_id)
 {
-    m_render.initialFBO(QSize(m_img.cols,m_img.rows));
+    m_renders[thread_id]->initialFBO(QSize(img.cols,img.rows));
     if(!m_render_to_label)
-        m_render.RenderBackground(m_img);
-    m_render.setModelViewMatrix(m_scale*m_R, m_weak_T(0), m_weak_T(1), 0.0);
-    m_render.setOrtho(0,m_img.cols,0,m_img.rows,-500,500);
-    m_render.setViewPort(0,0,m_img.cols,m_img.rows);
-    m_render.RenderPatchMesh(&m_mesh,result);
-    //    m_render.RenderImage(&m_mesh,result);
+        m_renders[thread_id]->RenderBackground(img);
+    m_renders[thread_id]->setModelViewMatrix(scale*R, T(0), T(1), 0.0);
+    m_renders[thread_id]->setOrtho(0,img.cols,0,img.rows,-500,500);
+    m_renders[thread_id]->setViewPort(0,0,img.cols,img.rows);
+    m_renders[thread_id]->RenderPatchMesh(&mesh,result);
 }
 
-void make_data_for_multi_classlearn::render_keypoints_on_img(cv::Mat &result)
+void make_data_for_multi_classlearn::render_keypoints_on_img_for_multithread(cv::Mat &result, const cv::Mat &img, TriMesh &mesh, const Matrix3f &R, const Vector2f &T, const float &scale, int thread_id)
 {
-    m_render.initialFBO(QSize(m_img.cols,m_img.rows));
-//    m_render.RenderBackground(m_img);
-    m_render.setModelViewMatrix(m_scale*m_R, m_weak_T(0), m_weak_T(1), 0.0);
-    m_render.setOrtho(0,m_img.cols,0,m_img.rows,-500,500);
-    m_render.setViewPort(0,0,m_img.cols,m_img.rows);
-    m_render.RenderVisibleKeyPoints(&m_mesh,m_keypoints_id,result);
+    m_renders[thread_id]->initialFBO(QSize(img.cols,img.rows));
+//    m_renders[thread_id].RenderBackground(m_img);
+    m_renders[thread_id]->setModelViewMatrix(scale*R, T(0), T(1), 0.0);
+    m_renders[thread_id]->setOrtho(0,img.cols,0,img.rows,-500,500);
+    m_renders[thread_id]->setViewPort(0,0,img.cols,img.rows);
+    m_renders[thread_id]->RenderVisibleKeyPoints(&mesh,m_keypoints_id,result);
 }
 
 void make_data_for_multi_classlearn::read_patches_and_neighbors(const std::string &file0, const std::string &file1)
@@ -143,23 +153,25 @@ void make_data_for_multi_classlearn::read_patches_and_neighbors(const std::strin
     io_utils::read_all_type_rowsfile_to_2vector<int>(file1, m_patch_neighbors);
 }
 
-void make_data_for_multi_classlearn::read_mesh_para(const std::string &file)
+
+void make_data_for_multi_classlearn::read_mesh_para_thread(const string &file, int thread_num)
 {
     std::vector<std::vector<float> > paras;
     io_utils::read_all_type_rowsfile_to_2vector<float>(file, paras);
-    m_shape.resize(m_shape_pcanum);
-    m_shape.setZero();
+    m_shapes[thread_num].resize(m_shape_pcanum);
+    m_shapes[thread_num].setZero();
     int size=paras[0].size();
-    if(m_shape.size()<size) size=m_shape.size();
-    memcpy(m_shape.data(),paras[0].data(),size);
-    m_exp.resize(m_exp_pcanum);
-    m_exp.setZero();
+    if(m_shapes[thread_num].size()<size) size=m_shapes[thread_num].size();
+    memcpy(m_shapes[thread_num].data(),paras[0].data(),size);
+    m_exps[thread_num].resize(m_exp_pcanum);
+    m_exps[thread_num].setZero();
     size = paras[1].size();
-    if(m_exp.size()<size)   size=m_exp.size();
-    memcpy(m_exp.data(),paras[1].data(),size);
+    if(m_exps[thread_num].size()<size)   size=m_exps[thread_num].size();
+    memcpy(m_exps[thread_num].data(),paras[1].data(),size);
 }
 
-void make_data_for_multi_classlearn::read_pose_para(const std::string &file)
+
+void make_data_for_multi_classlearn::read_pose_to_local(const string &file, Eigen::Matrix3f &R, Eigen::Vector2f &weak_T, float &scale)
 {
     std::vector<float> paras;
     io_utils::read_all_type_file_to_vector<float>(file, paras);
@@ -167,28 +179,28 @@ void make_data_for_multi_classlearn::read_pose_para(const std::string &file)
     transformation  = Eigen::AngleAxisf(-paras[0], Eigen::Vector3f::UnitX()) *
                       Eigen::AngleAxisf(-paras[1], Eigen::Vector3f::UnitY()) *
                       Eigen::AngleAxisf(-paras[2], Eigen::Vector3f::UnitZ());
-    m_R = transformation.rotation();
-    m_weak_T(0)=paras[3];
-    m_weak_T(1)=paras[4];
-    m_scale=paras[5];
+    R = transformation.rotation();
+    weak_T(0)=paras[3];
+    weak_T(1)=paras[4];
+    scale=paras[5];
 }
 
-void make_data_for_multi_classlearn::read_img(const std::string &file)
+void make_data_for_multi_classlearn::read_img_to_local(const string &file, cv::Mat &img)
 {
-    m_img=cv::imread(file);
+    img=cv::imread(file);
 }
 
-void make_data_for_multi_classlearn::update_mesh()
+
+void make_data_for_multi_classlearn::update_local_mesh(TriMesh &mesh, int thread_id)
 {
-    VectorXf verts = m_mean_exp+m_mean_shape+m_pca_shape*m_shape+m_pca_exp*m_exp;
-    for(TriMesh::VertexIter vit=m_mesh.vertices_begin(); vit!=m_mesh.vertices_end(); vit++)
+    VectorXf verts = m_mean_exp+m_mean_shape+m_pca_shape*m_shapes[thread_id]+m_pca_exp*m_exps[thread_id];
+    for(TriMesh::VertexIter vit=mesh.vertices_begin(); vit!=mesh.vertices_end(); vit++)
     {
         int pid = (*vit).idx();
         int wid = m_partv_2_wholev[pid];
-        m_mesh.set_point(*vit, TriMesh::Point(verts(3*wid), verts(3*wid+1), verts(3*wid+2)));
+        mesh.set_point(*vit, TriMesh::Point(verts(3*wid), verts(3*wid+1), verts(3*wid+2)));
     }
-//    m_mesh.update_normals();
-//    OpenMesh::IO::write_mesh(m_mesh,"../test_result.obj");
+    mesh.update_normals();
 }
 void make_data_for_multi_classlearn::compute_predefined_colors()
 {
@@ -206,67 +218,125 @@ void make_data_for_multi_classlearn::compute_predefined_colors()
         m_predefine_colors.push_back(color);
     }
 }
-void make_data_for_multi_classlearn::set_patches_colors()
+
+void make_data_for_multi_classlearn::set_patches_colors_for_multithread(std::vector<TriMesh::Color> &colors)
 {
-//    m_mesh.request_face_colors();
-    std::map<int,int> patch2colorid;
-    for(int i=0;i<m_patches.size();i++)
-        patch2colorid[i] = -1;
-    base_generator_type gen(time(0));
-    for(int i=0; i<m_patches.size(); i++)
+        std::map<int,int> patch2colorid;
+        for(int i=0;i<m_patches.size();i++)
+            patch2colorid[i] = -1;
+        colors.clear();
+        base_generator_type gen(time(0));
+        for(int i=0; i<m_patches.size(); i++)
+        {
+            const std::vector<int> &temp = m_patches[i];
+            const std::vector<int> &neighbors = m_patch_neighbors[i];
+            std::set<int> used_colors;
+            for(int j=0; j<neighbors.size(); j++)
+            {
+                std::map<int,int>::iterator itr=patch2colorid.find(neighbors[j]);
+                if(itr->second!=-1)
+                    used_colors.insert(itr->second);
+            }
+            int color_id=-1;
+            random_get_patch_color(used_colors, color_id, gen);
+            colors.push_back(m_predefine_colors[color_id]);
+            patch2colorid.at(i) = color_id;
+        }
+}
+
+void make_data_for_multi_classlearn::set_keypoints_colors_for_multithread(std::vector<TriMesh::Color> &colors)
+{
+    colors.clear();
+    for(int i=0;m_keypoints_id.size();i++)
+        colors.push_back(TriMesh::Color(1.0,0.0,0.0));
+}
+
+
+void make_data_for_multi_classlearn::code_patches_colors_formultithread(std::vector<TriMesh::Color> &colors)
+{
+    std::vector<Vector4i> tcolors;
+   Render::color_code(m_patches.size(), tcolors);
+   colors.clear();
+   for(int i=0; i<tcolors.size(); i++)
+   {
+       const std::vector<int> &temp = m_patches[i];
+       TriMesh::Color color(float(tcolors[i](0))/255.0,float(tcolors[i](1))/255.0,float(tcolors[i](2))/255.0);
+        colors.push_back(color);
+   }
+}
+
+void make_data_for_multi_classlearn::code_keypoints_colors_formultithread(std::vector<TriMesh::Color> &colors)
+{
+    std::vector<Vector4i> tcolors;
+    Render::color_code(m_keypoints_id.size(), tcolors);
+    for(int i=0;i<tcolors.size();i++)
     {
-        const std::vector<int> &temp = m_patches[i];
-        const std::vector<int> &neighbors = m_patch_neighbors[i];
-        std::set<int> used_colors;
-        for(int j=0; j<neighbors.size(); j++)
-        {
-            std::map<int,int>::iterator itr=patch2colorid.find(neighbors[j]);
-            if(itr->second!=-1)
-                used_colors.insert(itr->second);
-        }
-        int color_id=-1;
-        random_get_patch_color(used_colors, color_id, gen);
-        for(int j=0;j<temp.size();j++)
-        {
-            m_mesh.set_color(TriMesh::FaceHandle(temp[j]), m_predefine_colors[color_id]);
-        }
-        patch2colorid.at(i) = color_id;
+        TriMesh::Color color(float(tcolors[i](0))/255.0,float(tcolors[i](1))/255.0,float(tcolors[i](2))/255.0);
+        colors.push_back(color);
     }
 }
 
-void make_data_for_multi_classlearn::code_patches_colors()
+
+
+void make_data_for_multi_classlearn::color_mesh(TriMesh &mesh,const vector<TriMesh::Color> &colors, bool isface)
 {
-     std::vector<Vector4i> colors;
-    Render::color_code(m_patches.size(), colors);
-    for(int i=0; i<colors.size(); i++)
+    if(isface)
     {
-        const std::vector<int> &temp = m_patches[i];
-        TriMesh::Color color(float(colors[i](0))/255.0,float(colors[i](1))/255.0,float(colors[i](2))/255.0);
-        for(int j=0;j<temp.size();j++)
+        for(int i=0; i<colors.size(); i++)
         {
-            m_mesh.set_color(TriMesh::FaceHandle(temp[j]), color);
+            const std::vector<int> &temp = m_patches[i];
+            TriMesh::Color color = colors[i];
+            for(int j=0;j<temp.size();j++)
+            {
+                mesh.set_color(TriMesh::FaceHandle(temp[j]), color);
+            }
+        }
+    }
+    else
+    {
+        for(TriMesh::VertexIter vit=mesh.vertices_begin(); vit!=mesh.vertices_end();vit++)
+            mesh.set_color(*vit,TriMesh::Color(0,0,0));
+        for(int i=0;i<colors.size();i++)
+        {
+            TriMesh::Color color=colors[i];
+            mesh.set_color(TriMesh::VertexHandle(m_keypoints_id[i]),color);
         }
     }
 }
 
-void make_data_for_multi_classlearn::set_keypoints_colors()
+void make_data_for_multi_classlearn::get_meshpara_names(const string &root, std::vector<string> &names)
 {
-    for(TriMesh::VertexIter vit=m_mesh.vertices_begin(); vit!=m_mesh.vertices_end(); vit++)
-        m_mesh.set_color(*vit, TriMesh::Color(0.0,0.0,0.0));
-    for(int i=0;i<m_keypoints_id.size();i++)
-        m_mesh.set_color(TriMesh::VertexHandle(m_keypoints_id[i]),TriMesh::Color(1.0,0.0,0.0));
+    QDir path(QString(root.data()));
+    path.setFilter(QDir::Files);
+    QStringList filters;
+    filters.push_back("*_mesh_para.txt");
+    path.setNameFilters(filters);
+    path.setSorting(QDir::Name);
+    QStringList entrys = path.entryList();
+    names.clear();
+    for(QStringList::Iterator vit = entrys.begin(); vit!=entrys.end(); vit++)
+    {
+        names.push_back((*vit).toStdString());
+    }
 }
 
-void make_data_for_multi_classlearn::code_keypoints_colors()
+void make_data_for_multi_classlearn::get_permesh_imgnames(const string &root, const std::vector<string> &meshfiles, std::vector<std::vector<string> > &names)
 {
-    for(TriMesh::VertexIter vit=m_mesh.vertices_begin(); vit!=m_mesh.vertices_end(); vit++)
-        m_mesh.set_color(*vit, TriMesh::Color(0.0,0.0,0.0));
-    std::vector<Vector4i> colors;
-    Render::color_code(m_keypoints_id.size(), colors);
-    for(int i=0;i<colors.size();i++)
+    QDir path(QString(root.data()));
+    names.clear();
+    names.resize(meshfiles.size(), std::vector<std::string>());
+    for(int i=0;i<meshfiles.size(); i++)
     {
-        TriMesh::Color color(float(colors[i](0))/255.0,float(colors[i](1))/255.0,float(colors[i](2))/255.0);
-        m_mesh.set_color(TriMesh::VertexHandle(m_keypoints_id[i]),color);
+        std::vector<std::string> &temp=names[i];
+        std::string mesh_name = meshfiles[i];
+        QStringList filters;
+        filters.push_back(QString((mesh_name.substr(0,mesh_name.size()-14)+"_*.jpg").data()));
+        path.setNameFilters(filters);
+        QStringList entrys = path.entryList();
+        for(QStringList::Iterator sit = entrys.begin(); sit!=entrys.end(); sit++)
+        {
+            temp.push_back((*sit).toStdString());
+        }
     }
 }
 
@@ -360,5 +430,27 @@ void make_data_for_multi_classlearn::random_get_patch_color(const std::set<int> 
     }
     //using uniform_int_distribution will become ambigious, this is very strange, because other project can work, but here can not work!!!
     boost::variate_generator<base_generator_type&, uniform_int_distribution_type > random_int(gen, uniform_int_distribution_type(0,chooseable_id.size()-1));
-    choosed_id = chooseable_id[random_int()];
+    choosed_id = chooseable_id[chooseable_id.size()/2];
+}
+
+void make_data_for_multi_classlearn::set_threads(int thread_num)
+{
+    omp_set_num_threads(thread_num);
+    m_shapes.resize(thread_num, VectorXf());
+    m_exps.resize(thread_num, VectorXf());
+    for(int i=0; i<m_renders.size();i++)
+        delete m_renders[i];
+//    m_renders.resize(thread_num, );
+    for(int i=0; i<thread_num; i++)
+    {
+        Render* ren = new Render();
+        m_renders.push_back(ren);
+        TriMesh temp;
+        OpenMesh::IO::read_mesh(temp,"../Data/part_face.obj");
+        temp.request_vertex_normals();
+        temp.request_face_normals();
+        temp.request_face_colors();
+        temp.request_vertex_colors();
+        m_meshs.push_back(temp);
+    }
 }
