@@ -2,7 +2,7 @@
 
 myRender::myRender()
 {
-    m_tolerance = 0.01;
+    m_tolerance = 0.5;
 }
 
 void myRender::initialSize(int width, int height)
@@ -12,12 +12,13 @@ void myRender::initialSize(int width, int height)
     clear_depth_buffer();
 }
 
-void myRender::setModelViewMatrix(const Matrix3f &R, float tx, float ty, float tz)
+void myRender::setWeakPerspecPara(const Matrix3f &R, float tx, float ty, float tz, float scale)
 {
     m_R = R;
     m_T(0) = tx;
     m_T(1) = ty;
     m_T(2) = tz;
+    m_scale = scale;
 }
 //need mesh has face normal status.
 void myRender::RenderPatchMesh(TriMesh *mesh, cv::Mat &result)
@@ -27,14 +28,14 @@ void myRender::RenderPatchMesh(TriMesh *mesh, cv::Mat &result)
                                f_end(mesh->faces_end());
     TriMesh::ConstFaceVertexIter  fv_it;
 
-    float *addrv = mesh->points(mesh->vertices_begin().handle()).data();
+    float *addrv = mesh->point(mesh->vertices_begin().handle()).data();
     Eigen::MatrixXf temp = Eigen::Map<Eigen::MatrixXf>(addrv, 3, mesh->n_vertices());
-    Eigen::MatrixXf points = m_R*temp+m_T;
+    Eigen::MatrixXf points = (m_scale*m_R*temp).colwise()+m_T;
     std::vector<float>  img;
     img.resize(3*m_width*m_height,0.0);
     for (; f_it!=f_end; ++f_it)       //per vertex normal must be seted before per vertex position!!!
     {
-        TriMesh::Normal tn = mesh->normal(fv_it);
+        TriMesh::Normal tn = mesh->normal(f_it);
         Vector3f norm(tn[0],tn[1],tn[2]);
         norm = m_R*norm;
         if(cull_face(norm))
@@ -53,9 +54,10 @@ void myRender::RenderPatchMesh(TriMesh *mesh, cv::Mat &result)
         p = points.col((*fv_it).idx());
         float x2,y2,z2;
         x2=p(0);    y2=p(1);    z2=p(2);
-        float zmin=z0;
+        /*float zmin=z0;
         if(z1<zmin) zmin=z1;
-        if(z2<zmin) zmin=z2;        //zhe li yong san jiao xin zui xiao de shen du dai ti zheng ge san jiao xing shen du, wei le jian dan
+        if(z2<zmin) zmin=z2;*/        //zhe li yong san jiao xin zui xiao de shen du dai ti zheng ge san jiao xing shen du, wei le jian dan
+        float zmin = (z0+z1+z2)/3.0;
         std::vector<int>    ids;
         rasterizeTriangle(x0,y0,x1,y1,x2,y2, ids);
         for(int i=0; i<ids.size(); i++)
@@ -77,14 +79,58 @@ void myRender::RenderPatchMesh(TriMesh *mesh, cv::Mat &result)
     {
         for (int j = 0; j < m_width; j++)
         {
-            rv = (int)img[(i * m_width + j) * 3]*255.0;
-            gv = (int)img[(i * m_width + j) * 3 + 1]*255.0;
-            bv = (int)img[(i * m_width + j) * 3 + 2]*255.0;
+            rv = int(img[(i * m_width + j) * 3]*255.0);
+            gv = int(img[(i * m_width + j) * 3 + 1]*255.0);
+            bv = int(img[(i * m_width + j) * 3 + 2]*255.0);
             result.at<cv::Vec3b>(m_height - 1 - i, j)[2] = rv;
             result.at<cv::Vec3b>(m_height - 1 - i, j)[1] = gv;
             result.at<cv::Vec3b>(m_height - 1 - i, j)[0] = bv;
         }
     }
+}
+
+void myRender::color_code(int N, std::vector<Vector4i> &colors)
+{
+    colors.clear();
+    int RN = N / 255 / 255;
+    int GN = (N - RN * 255 * 255) / 255;
+    int BN = N - RN * 255 * 255 - GN * 255;
+    for (int i = 1; i <= RN; i++)
+    {
+        for (int j = 1; j <= 255; j++)
+        {
+            for (int k = 1; k <= 255; k++)
+            {
+                colors.push_back(Eigen::Vector4i(i,j,k,255));
+            }
+        }
+    }
+
+    for (int j = 1; j <= GN; j++)
+    {
+        for (int k = 1; k <= 255; k++)
+        {
+            colors.push_back(Eigen::Vector4i(RN+1,j,k,255));
+        }
+    }
+
+    for (int k = 1; k <= BN; k++)
+    {
+        colors.push_back(Eigen::Vector4i(RN+1,GN+1,k,255));
+    }
+}
+
+void myRender::color_decode(const Vector4i &color, int &id)
+{
+    color_decode(color(0),color(1),color(2),id);
+}
+
+void myRender::color_decode(const int &r, const int &g, const int &b, int &id)
+{
+    if(r==0||g==0||b==0)
+        id=-1;
+    else
+        id = (r-1)*255*255+(g-1)*255+b-1;
 }
 
 void myRender::rasterizeTriangle(float x0, float y0, float x1, float y1, float x2, float y2, vector<int> &rastered_pixel_id)
@@ -167,71 +213,125 @@ bool myRender::check_point_overlap(int x0, int y0, int x1, int y1)
 
 bool myRender::check_point_online(int x, int y, int a0, int b0, int a1, int b1)//3 dian hu bu xiang deng
 {
-    float l0x = float(a0-x);
-    float l0y = float(b0-y);
-    float l1x = float(a1-x);
-    float l1y = float(b1-y);
-    float l0 = sqrt(l0x*l0x+l0y*l0y);
-    float l1 = sqrt(l1x*l1x+l1y*l1y);
-    float cos = (l0x*l1x+l0y*l1y)/(l0*l1);
-    if(fabs(cos+1)<m_tolerance)
+//    float l0x = float(a0-x);
+//    float l0y = float(b0-y);
+//    float l1x = float(a1-x);
+//    float l1y = float(b1-y);
+//    float l0 = sqrt(l0x*l0x+l0y*l0y);
+//    float l1 = sqrt(l1x*l1x+l1y*l1y);
+//    float cos = (l0x*l1x+l0y*l1y)/(l0*l1);
+//    if(fabs(cos+1)<m_tolerance)
+//        return true;
+//    else
+//        return false;
+    //chui zhi shi
+    if(a0==a1)
+    {
+        if(x==a0)   //ju li zhi shao cha 1, tolerance ying dang xiao yu 1, zhiyou xiang deng shi cai ke neng zai xian shang
+        {
+            if((y-b0)*(y-b1)<0)
+                return true;
+            else
+                return false;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    float k = float(b1-b0)/float(a1-a0);
+    float inty = (k*float(x)-k*float(a0)+float(b0)+k*k*float(y))/(k*k+1);
+    float intx = float(x)+k*float(y)-k*inty;
+    float len2 = (intx-float(x))*(intx-float(x))+(inty-float(y))*(inty-float(y));
+    if(len2>m_tolerance*m_tolerance)
+        return false;
+    len2 = (intx-float(a0))*(intx-float(a0))+(inty-float(b0))*(inty-float(b0));
+    if(len2<m_tolerance*m_tolerance)
+        return true;
+
+    len2 = (intx-float(a1))*(intx-float(a1))+(inty-float(b1))*(inty-float(b1));
+    if(len2<m_tolerance*m_tolerance)
+        return true;
+    if(((inty-float(b0))*(inty-float(b1))+(intx-float(a0))*(intx-float(a1)))<0)
         return true;
     else
         return false;
 }
 
+bool myRender::check_point_oninfiniteline(int x, int y, int a0, int b0, int a1, int b1)
+{
+    if(a0==a1)
+    {
+        if(x==a0)   //ju li zhi shao cha 1, tolerance ying dang xiao yu 1, zhiyou xiang deng shi cai ke neng zai xian shang
+        {
+            if((y-b0)*(y-b1)<0)
+                return true;
+            else
+                return false;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    float k = float(b1-b0)/float(a1-a0);
+    float inty = (k*float(x)-k*float(a0)+float(b0)+k*k*float(y))/(k*k+1);
+    float intx = float(x)+k*float(y)-k*inty;
+    float len2 = (intx-float(x))*(intx-float(x))+(inty-float(y))*(inty-float(y));
+    if(len2>m_tolerance*m_tolerance)
+        return false;
+    else
+        return true;
+}
+
 bool myRender::check_point_in_triangle(int x, int y, int x0, int y0, int x1, int y1, int x2, int y2)
 {
+
+    if(check_point_online(x,y,x0,y0,x1,y1)||check_point_online(x,y,x1,y1,x2,y2)||check_point_online(x,y,x2,y2,x0,y0))
+        return true;
+    if(check_point_oninfiniteline(x0,y0,x1,y1,x2,y2))
+        return false;
+//xy bu zai bian shang , qie san jiao xing you nei bu
     int l01x = x1-x0;
     int l01y = y1-y0;
     int l02x = x2-x0;
     int l02y = y2-y0;
     float sign_sin201=cross_sin(l02x,l02y,l01x,l01y);
-    if(fabs(sign_sin201)<m_tolerance) //triangle is a line
-    {
-        if(check_point_online(x,y,x0,y0,x1,y1)||check_point_online(x,y,x1,y1,x2,y2))
-            return true;
-        else
-            return false;
-    }
-    else    //triang is normal triangle, jian cha dian yu san bian dui ying ding dian shi fou dou tong ce
-    {
-        int l0x = x-x0;
-        int l0y = y-y0;
-        float sign_sinp01=cross_sin(l0x,l0y,l01x,l01y);
-        bool check1=false;
-        if(sign_sinp01*sign_sin201>0)   check1=true;
 
-        int l1x = x-x1;
-        int l1y = y-y1;
-        int l12x = x2-x1;
-        int l12y = y2-y1;
-        float sign_sinp12=cross_sin(l1x,l1y,l12x,l12y);
-        int l10x = x0-x1;
-        int l10y = y0-y1;
+    int l0x = x-x0;
+    int l0y = y-y0;
+    float sign_sinp01=cross_sin(l0x,l0y,l01x,l01y);
+    bool check1=false;
+    if(sign_sinp01*sign_sin201>0)   check1=true;
+
+    int l1x = x-x1;
+    int l1y = y-y1;
+    int l12x = x2-x1;
+    int l12y = y2-y1;
+    float sign_sinp12=cross_sin(l1x,l1y,l12x,l12y);
+    int l10x = x0-x1;
+    int l10y = y0-y1;
 //        int l12x = x2-x1;
 //        int l12y = y2-y1;
-        float sign_sin012=cross_sin(l10x,l10y,l12x,l12y);
-        bool check2=false;
-        if(sign_sinp12*sign_sin012>0)   check2=true;
+    float sign_sin012=cross_sin(l10x,l10y,l12x,l12y);
+    bool check2=false;
+    if(sign_sinp12*sign_sin012>0)   check2=true;
 
-        int l2x = x-x2;
-        int l2y = y-y2;
-        int l20x = x0-x2;
-        int l20y = y0-y2;
-        float sign_sinp20=cross_sin(l2x,l2y,l20x,l20y);
-        int l21x = x1-x2;
-        int l21y = y1-y2;
-        float sign_sin120=cross_sin(l21x,l21y,l20x,l20y);
-        bool check3 = false;
-        if(sign_sinp20*sign_sin120>0)   check3=true;
+    int l2x = x-x2;
+    int l2y = y-y2;
+    int l20x = x0-x2;
+    int l20y = y0-y2;
+    float sign_sinp20=cross_sin(l2x,l2y,l20x,l20y);
+    int l21x = x1-x2;
+    int l21y = y1-y2;
+    float sign_sin120=cross_sin(l21x,l21y,l20x,l20y);
+    bool check3 = false;
+    if(sign_sinp20*sign_sin120>0)   check3=true;
 
-        if(check1&&check2&&check3)
-            return true;
-        else
-            return false;
-
-    }
+    if(check1&&check2&&check3)
+        return true;
+    else
+        return false;
 
 
 }
@@ -246,12 +346,13 @@ float myRender::cross_sin(int l0x, int l0y, int l1x, int l1y)   //2 dian are dif
 bool myRender::cull_face(const Vector3f &norm)
 {
     if(norm(2)>0)
-        return true;
-    else
         return false;
+    else
+        return true;
 }
 
 void myRender::clear_depth_buffer()
 {
+    m_depthbuffer.clear();
     m_depthbuffer.resize(m_width*m_height, -100000000);
 }

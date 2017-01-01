@@ -15,8 +15,8 @@ make_data_for_multi_classlearn::make_data_for_multi_classlearn()
     io_utils::read_all_type_file_to_vector<int>("../Data/partv23dmmv.txt",m_partv_2_wholev);
     io_utils::read_all_type_file_to_vector<int>("../Data/part_face_keypoints.txt",m_keypoints_id);
     OpenMesh::IO::read_mesh(m_mesh,"../Data/part_face.obj");
-//    m_mesh.request_vertex_normals();
-//    m_mesh.request_face_normals();
+    m_mesh.request_vertex_normals();
+    m_mesh.request_face_normals();
     m_mesh.request_face_colors();
     m_mesh.request_vertex_colors();
     compute_predefined_colors();
@@ -29,7 +29,7 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
     int num_seg=100;
     int accu_seg_num_to_pause=15;
     int accu_seg_num=0;
-    for(int i=0;i<num_seg+1;i++)  //100 segmentation and 1 keypoints classification
+    for(int i=0;i<num_seg/*+1*/;i++)  //100 segmentation and 1 keypoints classification
     {
 
         if(accu_seg_num==accu_seg_num_to_pause)
@@ -53,20 +53,10 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
         std::string patchfile = segdata_root+"part_face_segs_"+std::to_string(i)+".txt";
         std::string neighfile = segdata_root+"part_face_seg_neighbors_"+std::to_string(i)+".txt";
         read_patches_and_neighbors(patchfile,neighfile);
-        if(i<num_seg)
-        {
-            if(!m_render_to_label)
-                set_patches_colors();
-            else
-                code_patches_colors();
-        }
+        if(!m_render_to_label)
+            set_patches_colors();
         else
-        {
-            if(!m_render_to_label)
-                set_keypoints_colors();
-            else
-                code_keypoints_colors();
-        }
+            code_patches_colors();
         QDir path(QString(root.data()));
         path.setFilter(QDir::Files);
         QStringList filters={"*_mesh_para.txt"};
@@ -90,14 +80,7 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
                 read_img(root+img_name);
                 update_mesh();
                 cv::Mat result;
-                if(i<num_seg)
-                {
-                        render_patches_on_img(result);
-                }
-                else
-                {
-                        render_keypoints_on_img(result);
-                }
+                render_patches_on_img(result);
                 if(!m_render_to_label)
                     cv::imwrite(save_root+std::to_string(i)+"/"+img_name,result);
                 else
@@ -117,24 +100,28 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
 
 void make_data_for_multi_classlearn::render_patches_on_img(cv::Mat &result)
 {
-    m_render.initialFBO(QSize(m_img.cols,m_img.rows));
-    if(!m_render_to_label)
-        m_render.RenderBackground(m_img);
-    m_render.setModelViewMatrix(m_scale*m_R, m_weak_T(0), m_weak_T(1), 0.0);
-    m_render.setOrtho(0,m_img.cols,0,m_img.rows,-500,500);
-    m_render.setViewPort(0,0,m_img.cols,m_img.rows);
+//    m_render.initialFBO(QSize(m_img.cols,m_img.rows));
+//    if(!m_render_to_label)
+//        m_render.RenderBackground(m_img);
+//    m_render.setModelViewMatrix(m_scale*m_R, m_weak_T(0), m_weak_T(1), 0.0);
+//    m_render.setOrtho(0,m_img.cols,0,m_img.rows,-500,500);
+//    m_render.setViewPort(0,0,m_img.cols,m_img.rows);
+//    m_render.RenderPatchMesh(&m_mesh,result);
+//    //    m_render.RenderImage(&m_mesh,result);
+
+    m_render.initialSize(m_img.cols,m_img.rows);
+    m_render.setWeakPerspecPara(m_R, m_weak_T(0), m_weak_T(1), 0.0, m_scale);
     m_render.RenderPatchMesh(&m_mesh,result);
-    //    m_render.RenderImage(&m_mesh,result);
 }
 
 void make_data_for_multi_classlearn::render_keypoints_on_img(cv::Mat &result)
 {
-    m_render.initialFBO(QSize(m_img.cols,m_img.rows));
-//    m_render.RenderBackground(m_img);
-    m_render.setModelViewMatrix(m_scale*m_R, m_weak_T(0), m_weak_T(1), 0.0);
-    m_render.setOrtho(0,m_img.cols,0,m_img.rows,-500,500);
-    m_render.setViewPort(0,0,m_img.cols,m_img.rows);
-    m_render.RenderVisibleKeyPoints(&m_mesh,m_keypoints_id,result);
+//    m_render.initialFBO(QSize(m_img.cols,m_img.rows));
+////    m_render.RenderBackground(m_img);
+//    m_render.setModelViewMatrix(m_scale*m_R, m_weak_T(0), m_weak_T(1), 0.0);
+//    m_render.setOrtho(0,m_img.cols,0,m_img.rows,-500,500);
+//    m_render.setViewPort(0,0,m_img.cols,m_img.rows);
+//    m_render.RenderVisibleKeyPoints(&m_mesh,m_keypoints_id,result);
 }
 
 void make_data_for_multi_classlearn::read_patches_and_neighbors(const std::string &file0, const std::string &file1)
@@ -187,7 +174,7 @@ void make_data_for_multi_classlearn::update_mesh()
         int wid = m_partv_2_wholev[pid];
         m_mesh.set_point(*vit, TriMesh::Point(verts(3*wid), verts(3*wid+1), verts(3*wid+2)));
     }
-//    m_mesh.update_normals();
+    m_mesh.update_normals();
 //    OpenMesh::IO::write_mesh(m_mesh,"../test_result.obj");
 }
 void make_data_for_multi_classlearn::compute_predefined_colors()
@@ -237,7 +224,7 @@ void make_data_for_multi_classlearn::set_patches_colors()
 void make_data_for_multi_classlearn::code_patches_colors()
 {
      std::vector<Vector4i> colors;
-    Render::color_code(m_patches.size(), colors);
+    myRender::color_code(m_patches.size(), colors);
     for(int i=0; i<colors.size(); i++)
     {
         const std::vector<int> &temp = m_patches[i];
@@ -262,7 +249,7 @@ void make_data_for_multi_classlearn::code_keypoints_colors()
     for(TriMesh::VertexIter vit=m_mesh.vertices_begin(); vit!=m_mesh.vertices_end(); vit++)
         m_mesh.set_color(*vit, TriMesh::Color(0.0,0.0,0.0));
     std::vector<Vector4i> colors;
-    Render::color_code(m_keypoints_id.size(), colors);
+    myRender::color_code(m_keypoints_id.size(), colors);
     for(int i=0;i<colors.size();i++)
     {
         TriMesh::Color color(float(colors[i](0))/255.0,float(colors[i](1))/255.0,float(colors[i](2))/255.0);
@@ -292,7 +279,7 @@ void make_data_for_multi_classlearn::decode_img_to_compression_label_bin(const c
             int g=int(data[3*(i*colnum+j)+1]);
             int r=int(data[3*(i*colnum+j)+2]);
             int id;
-            Render::color_decode(r,g,b,id);
+            myRender::color_decode(r,g,b,id);
             if(id!=-1)
             {
                 if(j<minx)  minx=j;

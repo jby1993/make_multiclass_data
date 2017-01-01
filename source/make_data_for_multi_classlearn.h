@@ -3,7 +3,7 @@
 #include <Eigen/Dense>
 #include <opencv/cv.h>
 #include "tri_mesh.h"
-#include "render.h"
+#include "myrender.h"
 #include "random_num_generator.h"
 using namespace Eigen;
 class make_data_for_multi_classlearn
@@ -47,7 +47,7 @@ private:
     TriMesh m_mesh;
     float m_scale;
     std::vector<int> m_partv_2_wholev;
-    Render m_render;
+    myRender m_render;
     std::vector<std::vector<int> >  m_patches;
     std::vector<std::vector<int> >  m_patch_neighbors;
     std::vector<int> m_keypoints_id;
