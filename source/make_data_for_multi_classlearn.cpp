@@ -6,6 +6,7 @@
 #include <QStringList>
 #include <stdint.h>
 #include <omp.h>
+#include <bits/basic_string.h>
 make_data_for_multi_classlearn::make_data_for_multi_classlearn()
 {
     m_thread_num = 4;
@@ -237,7 +238,8 @@ void make_data_for_multi_classlearn::get_meshpara_names(const string &root, std:
 {
     QDir path(QString(root.data()));
     path.setFilter(QDir::Files);
-    QStringList filters={"*_mesh_para.txt"};
+    QStringList filters;
+    filters.push_back("*_mesh_para.txt");
     path.setNameFilters(filters);
     path.setSorting(QDir::Name);
     QStringList entrys = path.entryList();

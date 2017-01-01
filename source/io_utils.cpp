@@ -3,7 +3,7 @@ namespace io_utils{
 void partfid2wholef2anotherpartfid(const std::string &pf2wf_file, const std::string &wf2opf_file, vector<int> &corres)
 {
     vector<int> list1;
-    ifstream file(pf2wf_file);
+    ifstream file(pf2wf_file.data());
     do
     {
        int id;
@@ -12,7 +12,7 @@ void partfid2wholef2anotherpartfid(const std::string &pf2wf_file, const std::str
     }while(!file.eof());
     file.close();
     vector<int> list2;
-    file.open(wf2opf_file);
+    file.open(wf2opf_file.data());
     do
     {
         int id;
