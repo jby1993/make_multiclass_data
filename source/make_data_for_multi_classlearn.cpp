@@ -10,7 +10,7 @@
 make_data_for_multi_classlearn::make_data_for_multi_classlearn()
 {
     m_thread_num = 4;
-
+    m_start_segnum=0;
     m_render_to_label=false;
     io_utils::read_pca_models("../Data/mainShapePCA.bin",m_mean_shape,m_pca_shape,m_shape_st,
                               m_vnum,m_shape_pcanum);
@@ -36,7 +36,7 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
     std::vector<std::vector<std::string > > per_imgfiles;
 //    get_permesh_imgnames(root, mesh_files, per_imgfiles);
     io_utils::read_all_type_rowsfile_to_2vector<string>("../Data/permesh_imgfiles.txt",per_imgfiles);
-    for(int k=30;k<num_seg;k++)  //myrender do not make keypoints result
+    for(int k=m_start_segnum;k<num_seg;k++)  //myrender do not make keypoints result
     {
 //program pause
         if(accu_seg_num==accu_seg_num_to_pause)

@@ -12,6 +12,7 @@ public:
     make_data_for_multi_classlearn();
     void set_render_to_label(bool val){m_render_to_label=val;}
     void set_thread_num(int num){m_thread_num=num;}
+    void set_startseg_num(int num){m_start_segnum=num;}
     void make_data(const std::string &root, const std::string &save_root);
     static void decode_img_to_compression_label_bin(const cv::Mat &img, const std::string &out);
     static void decode_compression_label_bin_to_img_label(const std::string &in,std::vector<uint16_t> &label, int &rows, int &cols);
@@ -53,6 +54,7 @@ private:
     std::vector<std::vector<int> >  m_patch_neighbors;
     std::vector<int> m_keypoints_id;
     std::vector<TriMesh::Color> m_predefine_colors;
+    int m_start_segnum;
     bool    m_render_to_label;  //true: save label data to bin, used for learning; false: save label data to img, used for visiual check
 };
 
