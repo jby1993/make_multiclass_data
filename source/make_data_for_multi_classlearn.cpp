@@ -52,11 +52,11 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
 //            std::cout<<"continue..."<<std::endl;
 //            accu_seg_num=0;
 //        }
-
-
-        save_dir.mkdir(QString((std::to_string(k)).data()));
-        std::string patchfile = segdata_root+"part_face_segs_"+std::to_string(k)+".txt";
-        std::string neighfile = segdata_root+"part_face_seg_neighbors_"+std::to_string(k)+".txt";
+        QString temp;   temp.setNum(k);
+        std::string numk=temp.toStdString();
+        save_dir.mkdir(temp);
+        std::string patchfile = segdata_root+"part_face_segs_"+numk+".txt";
+        std::string neighfile = segdata_root+"part_face_seg_neighbors_"+numk+".txt";
         read_patches_and_neighbors(patchfile,neighfile);
         std::vector<TriMesh::Color> patchcolors;
         if(!m_render_to_label)
@@ -84,16 +84,18 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
                 cv::Mat result;
                 render_patches_on_img_for_multithread(result,img,m_meshs[thread_id],R,T,scale,thread_id);
                 if(!m_render_to_label)
-                    cv::imwrite(save_root+std::to_string(k)+"/"+img_name,result);
+                    cv::imwrite(save_root+numk+"/"+img_name,result);
                 else
                 {
                     decode_img_to_compression_label_bin(result,
-                                                        save_root+std::to_string(k)+"/"+img_name.substr(0,img_name.size()-4)+"_label.bin");
+                                                        save_root+numk+"/"+img_name.substr(0,img_name.size()-4)+"_label.bin");
                 }
             }
 //            if(num>10)
 //                break;
-            std::cout<<std::to_string(k)<<" seg, "<<std::to_string(i)<<" person done!"<<std::endl;
+            QString itemp;  itemp.setNum(i);
+            std::string numi = itemp.toStdString();
+            std::cout<<numk<<" seg, "<<numi<<" person done!"<<std::endl;
 //            num++;
         }
 //        accu_seg_num++;
