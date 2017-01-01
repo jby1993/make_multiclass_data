@@ -28,30 +28,32 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
     std::string segdata_root="../part_face_seg_result/";
     QDir save_dir(QString(save_root.data()));
     int num_seg=100;
-//    int accu_seg_num_to_pause=15;
-//    int accu_seg_num=0;
+    int accu_seg_num_to_pause=35;
+    int accu_seg_num=0;
     std::vector<std::string> mesh_files;
-    get_meshpara_names(root, mesh_files);
+//    get_meshpara_names(root, mesh_files);
+    io_utils::read_all_type_file_to_vector<string>("../Data/mesh_para_filenames.txt",mesh_files);
     std::vector<std::vector<std::string > > per_imgfiles;
-    get_permesh_imgnames(root, mesh_files, per_imgfiles);
-    for(int k=0;k<num_seg;k++)  //myrender do not make keypoints result
+//    get_permesh_imgnames(root, mesh_files, per_imgfiles);
+    io_utils::read_all_type_rowsfile_to_2vector<string>("../Data/permesh_imgfiles.txt",per_imgfiles);
+    for(int k=30;k<num_seg;k++)  //myrender do not make keypoints result
     {
-////program pause
-//        if(accu_seg_num==accu_seg_num_to_pause)
-//        {
-//            std::cout<<"reach pause segmentation num, "<<"segmentation before "<<i<<" has been computed, "<<"please compress data and upload to serve, and clean local data to save space!"<<std::endl;
-//            std::cout<<"after clean data, input continue to continue."<<std::endl;
+//program pause
+        if(accu_seg_num==accu_seg_num_to_pause)
+        {
+            std::cout<<"reach pause segmentation num, "<<"segmentation before "<<k<<" has been computed, "<<"please compress data and upload to serve, and clean local data to save space!"<<std::endl;
+            std::cout<<"after clean data, input continue to continue."<<std::endl;
 
-//            std::string input;
-//            std::cin>>input;
-//            while(input!="continue")
-//            {
-//                std::cout<<"inpurt continue to continue! "<<std::endl;
-//                std::cin>>input;
-//            }
-//            std::cout<<"continue..."<<std::endl;
-//            accu_seg_num=0;
-//        }
+            std::string input;
+            std::cin>>input;
+            while(input!="continue")
+            {
+                std::cout<<"inpurt continue to continue! "<<std::endl;
+                std::cin>>input;
+            }
+            std::cout<<"continue..."<<std::endl;
+            accu_seg_num=0;
+        }
         QString temp;   temp.setNum(k);
         std::string numk=temp.toStdString();
         save_dir.mkdir(temp);
@@ -98,7 +100,7 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
             std::cout<<numk<<" seg, "<<numi<<" person done!"<<std::endl;
 //            num++;
         }
-//        accu_seg_num++;
+        accu_seg_num++;
     }
 }
 
@@ -125,12 +127,12 @@ void make_data_for_multi_classlearn::read_mesh_para_thread(const string &file, i
     m_shapes[thread_num].setZero();
     int size=paras[0].size();
     if(m_shapes[thread_num].size()<size) size=m_shapes[thread_num].size();
-    memcpy(m_shapes[thread_num].data(),paras[0].data(),size);
+    memcpy(m_shapes[thread_num].data(),paras[0].data(),size*sizeof(float));
     m_exps[thread_num].resize(m_exp_pcanum);
     m_exps[thread_num].setZero();
     size = paras[1].size();
     if(m_exps[thread_num].size()<size)   size=m_exps[thread_num].size();
-    memcpy(m_exps[thread_num].data(),paras[1].data(),size);
+    memcpy(m_exps[thread_num].data(),paras[1].data(),size*sizeof(float));
 }
 
 
@@ -215,7 +217,7 @@ void make_data_for_multi_classlearn::code_patches_colors_formultithread(std::vec
    colors.clear();
    for(int i=0; i<tcolors.size(); i++)
    {
-       const std::vector<int> &temp = m_patches[i];
+//       const std::vector<int> &temp = m_patches[i];
        TriMesh::Color color(float(tcolors[i](0))/255.0,float(tcolors[i](1))/255.0,float(tcolors[i](2))/255.0);
         colors.push_back(color);
    }

@@ -37,6 +37,7 @@ void read_all_type_file_to_vector(const string &file, vector<T> &ids)
         else
             break;
     }
+    in.close();
 }
 
 template<typename T>
