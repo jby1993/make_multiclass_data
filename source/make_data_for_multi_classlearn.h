@@ -4,7 +4,7 @@
 #include <opencv/cv.h>
 #include "tri_mesh.h"
 #include "myrender.h"
-#include "random_num_generator.h"
+//#include "random_num_generator.h"
 using namespace Eigen;
 class make_data_for_multi_classlearn
 {
@@ -29,7 +29,7 @@ private:
 
     void get_meshpara_names(const std::string &root,std::vector<std::string> &names);
     void get_permesh_imgnames(const std::string &root, const std::vector<std::string> &meshfiles, std::vector<std::vector<std::string> > &names);
-    void random_get_patch_color(const std::set<int> &exclude_color_ids, int &choosed_id, base_generator_type &gen);
+    void random_get_patch_color(const std::set<int> &exclude_color_ids, int &choosed_id/*, base_generator_type &gen*/);
 
     void set_threads(int thread_num);
 private:

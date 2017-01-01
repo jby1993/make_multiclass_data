@@ -185,7 +185,7 @@ void make_data_for_multi_classlearn::set_patches_colors_for_multithread(std::vec
         for(int i=0;i<m_patches.size();i++)
             patch2colorid[i] = -1;
         colors.clear();
-        base_generator_type gen(time(0));
+//        base_generator_type gen(time(0));
         for(int i=0; i<m_patches.size(); i++)
         {
             const std::vector<int> &temp = m_patches[i];
@@ -198,7 +198,7 @@ void make_data_for_multi_classlearn::set_patches_colors_for_multithread(std::vec
                     used_colors.insert(itr->second);
             }
             int color_id=-1;
-            random_get_patch_color(used_colors, color_id, gen);
+            random_get_patch_color(used_colors, color_id/*, gen*/);
             colors.push_back(m_predefine_colors[color_id]);
             patch2colorid.at(i) = color_id;
         }
@@ -340,7 +340,7 @@ void make_data_for_multi_classlearn::decode_compression_label_bin_to_img_label(c
         }
     }
 }
-void make_data_for_multi_classlearn::random_get_patch_color(const std::set<int> &exclude_color_ids, int &choosed_id, base_generator_type&gen)
+void make_data_for_multi_classlearn::random_get_patch_color(const std::set<int> &exclude_color_ids, int &choosed_id/*, base_generator_type&gen*/)
 {
     if(exclude_color_ids.size()>=m_predefine_colors.size())
     {
@@ -357,8 +357,8 @@ void make_data_for_multi_classlearn::random_get_patch_color(const std::set<int> 
         }
     }
     //using uniform_int_distribution will become ambigious, this is very strange, because other project can work, but here can not work!!!
-    boost::variate_generator<base_generator_type&, uniform_int_distribution_type > random_int(gen, uniform_int_distribution_type(0,chooseable_id.size()-1));
-    choosed_id = chooseable_id[random_int()];
+//    boost::variate_generator<base_generator_type&, uniform_int_distribution_type > random_int(gen, uniform_int_distribution_type(0,chooseable_id.size()-1));
+    choosed_id = chooseable_id[chooseable_id.size()/2];
 }
 
 void make_data_for_multi_classlearn::set_threads(int thread_num)

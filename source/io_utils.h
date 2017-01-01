@@ -27,7 +27,7 @@ template<typename T>    //this write method is most roboust, can ref read_all_ty
 void read_all_type_file_to_vector(const string &file, vector<T> &ids)
 {
     ids.clear();
-    ifstream in(file);
+    ifstream in(file.data());
     while(true)
     {
         T id;
@@ -42,7 +42,7 @@ void read_all_type_file_to_vector(const string &file, vector<T> &ids)
 template<typename T>
 void write_all_type_to_rowsfile(const vector<vector<T> > &ids, const string &name)
 {
-    std::ofstream file(name);
+    std::ofstream file(name.data());
     for(int i=0; i<ids.size(); i++)
     {
         std::vector<T> temp = ids[i];
@@ -56,7 +56,7 @@ void write_all_type_to_rowsfile(const vector<vector<T> > &ids, const string &nam
 template<typename T>
 void read_all_type_rowsfile_to_2vector(const string &file, vector<vector<T> > &ids)
 {
-    ifstream f(file);
+    ifstream f(file.data());
     vector<std::string> lines;
     string line;
     //getline first reach EOF, f.eof is false, next time use getline, f.eof is true, maybe use f.getline can be different
