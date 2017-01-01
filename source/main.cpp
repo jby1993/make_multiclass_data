@@ -1,5 +1,6 @@
 #include "io_utils.h"
 #include "make_data_for_multi_classlearn.h"
+#include <opencv2/highgui/highgui.hpp>
 int main(int argc, char *argv[])
 {
 
@@ -33,6 +34,6 @@ int main(int argc, char *argv[])
     make.make_data(argv[3],argv[4]);
 
 
-
+    std::cout<<"done"<<std::endl;
     return 0;
 }

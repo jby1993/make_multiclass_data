@@ -15,6 +15,7 @@ public:
     void make_data(const std::string &root, const std::string &save_root);
     static void decode_img_to_compression_label_bin(const cv::Mat &img, const std::string &out);
     static void decode_compression_label_bin_to_img_label(const std::string &in,std::vector<uint16_t> &label, int &rows, int &cols);
+    void set_threads(int thread_num);
 private:
     void render_patches_on_img_for_multithread(cv::Mat &result, const cv::Mat &img, TriMesh &mesh, const Matrix3f &R, const Vector2f &T, const float &scale, int thread_id);
     void read_patches_and_neighbors(const std::string &file0, const std::string &file1);
@@ -31,7 +32,7 @@ private:
     void get_permesh_imgnames(const std::string &root, const std::vector<std::string> &meshfiles, std::vector<std::vector<std::string> > &names);
     void random_get_patch_color(const std::set<int> &exclude_color_ids, int &choosed_id/*, base_generator_type &gen*/);
 
-    void set_threads(int thread_num);
+
 private:
     MatrixXf m_mean_shape;
     MatrixXf m_pca_shape;

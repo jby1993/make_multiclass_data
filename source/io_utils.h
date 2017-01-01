@@ -100,6 +100,11 @@ template<typename T>
 void write_all_type_to_bin(const vector<T> &ids, const string &file, bool write_size=false)
 {
     FILE *f=fopen(file.data(),"wb");
+    if(f==NULL)
+    {
+        std::cout<<"open file fail!"<<std::endl;
+        return ;
+    }
     if(write_size)
     {
         int size=ids.size();
@@ -112,6 +117,11 @@ template<typename T>
 void read_all_type_from_bin(const string &file, int size, vector<T> &ids)
 {
     FILE* f=fopen(file.data(), "rb");
+    if(f==NULL)
+    {
+        std::cout<<"open file fail!"<<std::endl;
+        return ;
+    }
     ids.resize(size,T(0));
     fread(ids.data(), sizeof(T), size, f);
     fclose(f);

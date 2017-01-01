@@ -28,7 +28,7 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
     std::string segdata_root="../part_face_seg_result/";
     QDir save_dir(QString(save_root.data()));
     int num_seg=100;
-    int accu_seg_num_to_pause=35;
+    int accu_seg_num_to_pause=num_seg;
     int accu_seg_num=0;
     std::vector<std::string> mesh_files;
 //    get_meshpara_names(root, mesh_files);
@@ -68,9 +68,10 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
 //        int num=0;
         #pragma omp parallel for num_threads(m_thread_num)
         for(int i=0; i<mesh_files.size(); i++)
-        {
-            if(i==3792)
-                std::cout<<"here"<<std::endl;
+        {            
+            QString itemp;  itemp.setNum(i);
+            std::string numi = itemp.toStdString();
+            std::cout<<numk<<" seg, "<<numi<<" person start!"<<std::endl;
             std::string mesh_name = mesh_files[i];
             const std::vector<std::string>  &temp = per_imgfiles[i];
             int thread_id = omp_get_thread_num();
@@ -97,9 +98,9 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
             }
 //            if(num>10)
 //                break;
-            QString itemp;  itemp.setNum(i);
-            std::string numi = itemp.toStdString();
-            std::cout<<numk<<" seg, "<<numi<<" person done!"<<std::endl;
+//            QString itemp;  itemp.setNum(i);
+//            std::string numi = itemp.toStdString();
+//            std::cout<<numk<<" seg, "<<numi<<" person done!"<<std::endl;
 //            num++;
         }
         accu_seg_num++;
