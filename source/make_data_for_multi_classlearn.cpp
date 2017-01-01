@@ -121,6 +121,7 @@ void make_data_for_multi_classlearn::read_patches_and_neighbors(const std::strin
 
 void make_data_for_multi_classlearn::read_mesh_para_thread(const string &file, int thread_num)
 {
+    //memcpy zhuyi, zui hou de size shi byte shu
     std::vector<std::vector<float> > paras;
     io_utils::read_all_type_rowsfile_to_2vector<float>(file, paras);
     m_shapes[thread_num].resize(m_shape_pcanum);
