@@ -32,9 +32,10 @@ int main(int argc, char *argv[])
         return -1;
     }
     num = argv[5];
-    ss<<num;
+    std::stringstream tss;
+    tss<<num;
     int start_segnum=-1;
-    ss>>start_segnum;
+    tss>>start_segnum;
     if(start_segnum<0||start_segnum>=100)
     {
         std::cout<<"start seg num input is wrong!!! input 0~99 integer."<<std::endl;
