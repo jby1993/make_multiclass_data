@@ -6,7 +6,7 @@ int main(int argc, char *argv[])
 
     if(argc!=6)
     {
-        std::cout<<"input 5 para, one is thread num, second is if render_to_label, third is data root, the firth is save root, last is start seg num!"<<std::endl;
+        std::cout<<"input 6 para, one is thread num, second is if render_to_label, third is data root, the firth is save root, the sixth is start seg num, the last is less end seg num!"<<std::endl;
         return -1;
     }
     make_data_for_multi_classlearn make;
@@ -41,8 +41,29 @@ int main(int argc, char *argv[])
         std::cout<<"start seg num input is wrong!!! input 0~99 integer."<<std::endl;
         return -1;
     }
+
+
+    num = argv[6];
+    std::stringstream ttss;
+    ttss<<num;
+    int lessend_segnum=-1;
+    ttss>>lessend_segnum;
+    if(lessend_segnum<=0||lessend_segnum>100)
+    {
+        std::cout<<"less end seg num input is wrong!!! input 1~100 integer."<<std::endl;
+        return -1;
+    }
+    if(start_segnum>=lessend_segnum)
+    {
+        std::cout<<"start seg num is greater than lessend segnum!!! input start seg num less than less end seg num."<<std::endl;
+        return -1;
+    }
     else
+    {
         make.set_startseg_num(start_segnum);
+        make.set_lessendseg_num(lessend_segnum);
+    }
+
     make.make_data(argv[3],argv[4]);
 
 

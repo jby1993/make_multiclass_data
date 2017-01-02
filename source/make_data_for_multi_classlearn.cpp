@@ -11,6 +11,7 @@ make_data_for_multi_classlearn::make_data_for_multi_classlearn()
 {
     m_thread_num = 4;
     m_start_segnum=0;
+    m_lessend_segnum=100;
     m_render_to_label=false;
     io_utils::read_pca_models("../Data/mainShapePCA.bin",m_mean_shape,m_pca_shape,m_shape_st,
                               m_vnum,m_shape_pcanum);
@@ -27,33 +28,33 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
     set_threads(m_thread_num);
     std::string segdata_root="../part_face_seg_result/";
     QDir save_dir(QString(save_root.data()));
-    int num_seg=100;
-    int accu_seg_num_to_pause=num_seg;
-    int accu_seg_num=0;
+//    int num_seg=100;
+//    int accu_seg_num_to_pause=num_seg;
+//    int accu_seg_num=0;
     std::vector<std::string> mesh_files;
 //    get_meshpara_names(root, mesh_files);
     io_utils::read_all_type_file_to_vector<string>("../Data/mesh_para_filenames.txt",mesh_files);
     std::vector<std::vector<std::string > > per_imgfiles;
 //    get_permesh_imgnames(root, mesh_files, per_imgfiles);
     io_utils::read_all_type_rowsfile_to_2vector<string>("../Data/permesh_imgfiles.txt",per_imgfiles);
-    for(int k=m_start_segnum;k<num_seg;k++)  //myrender do not make keypoints result
+    for(int k=m_start_segnum;k<m_lessend_segnum;k++)  //myrender do not make keypoints result
     {
 //program pause
-        if(accu_seg_num==accu_seg_num_to_pause)
-        {
-            std::cout<<"reach pause segmentation num, "<<"segmentation before "<<k<<" has been computed, "<<"please compress data and upload to serve, and clean local data to save space!"<<std::endl;
-            std::cout<<"after clean data, input continue to continue."<<std::endl;
+//        if(accu_seg_num==accu_seg_num_to_pause)
+//        {
+//            std::cout<<"reach pause segmentation num, "<<"segmentation before "<<k<<" has been computed, "<<"please compress data and upload to serve, and clean local data to save space!"<<std::endl;
+//            std::cout<<"after clean data, input continue to continue."<<std::endl;
 
-            std::string input;
-            std::cin>>input;
-            while(input!="continue")
-            {
-                std::cout<<"inpurt continue to continue! "<<std::endl;
-                std::cin>>input;
-            }
-            std::cout<<"continue..."<<std::endl;
-            accu_seg_num=0;
-        }
+//            std::string input;
+//            std::cin>>input;
+//            while(input!="continue")
+//            {
+//                std::cout<<"inpurt continue to continue! "<<std::endl;
+//                std::cin>>input;
+//            }
+//            std::cout<<"continue..."<<std::endl;
+//            accu_seg_num=0;
+//        }
         QString temp;   temp.setNum(k);
         std::string numk=temp.toStdString();
         save_dir.mkdir(temp);
@@ -103,7 +104,7 @@ void make_data_for_multi_classlearn::make_data(const std::string &root, const st
 //            std::cout<<numk<<" seg, "<<numi<<" person done!"<<std::endl;
 //            num++;
         }
-        accu_seg_num++;
+//        accu_seg_num++;
     }
 }
 
