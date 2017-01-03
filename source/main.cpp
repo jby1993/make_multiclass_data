@@ -4,9 +4,9 @@
 int main(int argc, char *argv[])
 {
 
-    if(argc!=6)
+    if(argc!=7)
     {
-        std::cout<<"input 6 para, one is thread num, second is if render_to_label, third is data root, the firth is save root, the sixth is start seg num, the last is less end seg num!"<<std::endl;
+        std::cout<<"input 6 para, one is thread num, second is if render_to_label, third is data root, the firth is save root, the fifth is start seg num, the last is less end seg num!"<<std::endl;
         return -1;
     }
     make_data_for_multi_classlearn make;
